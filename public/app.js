@@ -2,7 +2,7 @@
   app.js — Correcciones + parser con fallbacks
   - Listener para #loadBtn y URL /api/wu/history?stationId=...&date=YYYYMMDD
   - Render a #dataTable > tbody y actualización de KPIs
-  - Hora Europe/Madrid (sin segundos)
+  - Hora Europe/Madrid (solo HH:mm)
   - Parser: prioriza instantáneo; si falta, cae a Avg/High/Max
 */
 
@@ -11,6 +11,7 @@ function fmt(n, digits = 0) {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return '—';
   return Number(n).toFixed(digits);
 }
+
 function toMadridTime(isoLike) {
   if (!isoLike) return '—';
   const d = new Date(isoLike);
@@ -21,7 +22,8 @@ function toMadridTime(isoLike) {
       minute: '2-digit',
       hour12: false
     }).format(d);
-    // Extrae estrictamente HH:mm y descarta cualquier fecha u otros caracteres
+
+    // Extrae estrictamente HH:mm
     const m = String(formatted).match(/(\d{1,2}):(\d{2})/);
     if (m) {
       const hh = m[1].padStart(2, '0');
@@ -29,11 +31,13 @@ function toMadridTime(isoLike) {
       return `${hh}:${mm}`;
     }
   } catch {}
-  // Fallback manual si Intl falla: usa hora/minutos UTC y devuelve HH:mm (aprox)
+
+  // Fallback simple si Intl falla
   const hh = String(d.getUTCHours()).padStart(2, '0');
   const mm = String(d.getUTCMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
 }
+
 function yyyymmddFromInput(value) {
   const m = value && value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? (m[1] + m[2] + m[3]) : null;
@@ -164,4 +168,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==== Export ====
 window.__app_fixed__ = { fmt, toMadridTime, yyyymmddFromInput, parseWUResponse, renderTable, handleLoadClick };
-
