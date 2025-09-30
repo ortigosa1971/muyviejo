@@ -2,7 +2,7 @@
   app.js — Correcciones + parser con fallbacks
   - Listener para #loadBtn y URL /api/wu/history?stationId=...&date=YYYYMMDD
   - Render a #dataTable > tbody y actualización de KPIs
-  - Hora Europe/Madrid (solo HH:mm)
+  - Hora Europe/Madrid (sin segundos)
   - Parser: prioriza instantáneo; si falta, cae a Avg/High/Max
 */
 
@@ -11,7 +11,6 @@ function fmt(n, digits = 0) {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return '—';
   return Number(n).toFixed(digits);
 }
-
 function toMadridTime(isoLike) {
   if (!isoLike) return '—';
   const d = new Date(isoLike);
@@ -22,8 +21,7 @@ function toMadridTime(isoLike) {
       minute: '2-digit',
       hour12: false
     }).format(d);
-
-    // Extrae estrictamente HH:mm
+    // Extrae estrictamente HH:mm y descarta cualquier fecha u otros caracteres
     const m = String(formatted).match(/(\d{1,2}):(\d{2})/);
     if (m) {
       const hh = m[1].padStart(2, '0');
@@ -31,13 +29,11 @@ function toMadridTime(isoLike) {
       return `${hh}:${mm}`;
     }
   } catch {}
-
-  // Fallback simple si Intl falla
+  // Fallback manual si Intl falla: usa hora/minutos UTC y devuelve HH:mm (aprox)
   const hh = String(d.getUTCHours()).padStart(2, '0');
   const mm = String(d.getUTCMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
 }
-
 function yyyymmddFromInput(value) {
   const m = value && value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? (m[1] + m[2] + m[3]) : null;
@@ -50,7 +46,15 @@ function parseWUResponse(raw) {
   const obs = Array.isArray(raw) ? raw : (raw.observations || raw?.observations?.map?.(x => x) || []);
 
   const num = (v) => {
-    if (v === null || v === undefined || v === '') return null;
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (s === '' || s === '--' || s === '—' || s.toLowerCase() === 'na' || s.toLowerCase() === 'null') return null;
+      const cleaned = s.replace(',', '.').replace(/[^0-9+\-\.eE]/g, '');
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : null;
+    }
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };
