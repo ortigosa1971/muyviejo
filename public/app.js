@@ -14,15 +14,25 @@ function fmt(n, digits = 0) {
 function toMadridTime(isoLike) {
   if (!isoLike) return '—';
   const d = new Date(isoLike);
-  const s = new Intl.DateTimeFormat('es-ES', {
-    timeZone: 'Europe/Madrid',
-    hour: '2-digit', minute: '2-digit',
-    hour12: false
-  }).format(d).replace(',', '');
-  return s; // solo HH:mm
-  // s = dd/mm/yyyy hh:mm
-  const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})/);
-  return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}` : s;
+  try {
+    const formatted = new Intl.DateTimeFormat('es-ES', {
+      timeZone: 'Europe/Madrid',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(d);
+    // Extrae estrictamente HH:mm y descarta cualquier fecha u otros caracteres
+    const m = String(formatted).match(/(\d{1,2}):(\d{2})/);
+    if (m) {
+      const hh = m[1].padStart(2, '0');
+      const mm = m[2];
+      return `${hh}:${mm}`;
+    }
+  } catch {}
+  // Fallback manual si Intl falla: usa hora/minutos UTC y devuelve HH:mm (aprox)
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 function yyyymmddFromInput(value) {
   const m = value && value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -154,3 +164,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==== Export ====
 window.__app_fixed__ = { fmt, toMadridTime, yyyymmddFromInput, parseWUResponse, renderTable, handleLoadClick };
+
